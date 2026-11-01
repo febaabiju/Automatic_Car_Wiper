@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automatic Car Wiper | IoT Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="dashboard-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="M20 12h2"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+            <path d="M15.5 13a3.5 3.5 0 0 1-7 0"></path>
+            <path d="M12 13V7"></path>
+            <path d="M4 18h16"></path>
+            <path d="M6 21h12"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="header-title">Automatic Car Wiper</h1>
+          <p class="header-subtitle">IoT-Based Rain Detection and Automatic Wiper Control</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <!-- Backend API Health Pill -->
+        <div id="backend-status-pill" class="status-pill status-connecting">
+          <span class="status-dot"></span>
+          <span id="backend-status-text">Backend: Connecting...</span>
+        </div>
+        <!-- ESP32 Device Pill -->
+        <div id="esp32-status-pill" class="status-pill status-offline">
+          <span class="status-dot"></span>
+          <span id="esp32-status-text">ESP32: Offline</span>
+        </div>
+        <!-- Refresh Button -->
+        <button id="manual-refresh-btn" class="refresh-btn" title="Refresh Telemetry">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+            <path d="M16 21h5v-5"></path>
+          </svg>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Alert / Error Banner -->
+    <div id="system-alert" class="system-alert hidden">
+      <span class="alert-icon">⚠️</span>
+      <span id="system-alert-message" class="alert-message"></span>
+    </div>
+
+    <!-- Live Telemetry KPI Cards Grid -->
+    <section class="metrics-grid">
+      <!-- 1. Rain Sensor Value Card -->
+      <div class="metric-card">
+        <div class="card-header">
+          <span class="card-label">Rain Sensor Value</span>
+          <div class="card-icon blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrapper">
+            <span id="rain-value-display" class="metric-value">--</span>
+            <span class="metric-unit">/ 4095 ADC</span>
+          </div>
+          <div class="rain-meter-track">
+            <div id="rain-meter-bar" class="rain-meter-fill" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span id="rain-intensity-text" class="card-subtext">Waiting for sensor data</span>
+        </div>
+      </div>
+
+      <!-- 2. Rain Status Card -->
+      <div class="metric-card">
+        <div class="card-header">
+          <span class="card-label">Rain Status</span>
+          <div class="card-icon cyan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+              <path d="M11 13v3"></path>
+              <path d="M15 13v3"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrapper">
+            <span id="rain-status-badge" class="badge badge-neutral">--</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span id="rain-status-subtext" class="card-subtext">Condition: No data</span>
+        </div>
+      </div>
+
+      <!-- 3. Wiper Status Card -->
+      <div class="metric-card">
+        <div class="card-header">
+          <span class="card-label">Wiper Status</span>
+          <div class="card-icon green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrapper">
+            <span id="wiper-status-badge" class="badge badge-neutral">--</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span id="wiper-status-subtext" class="card-subtext">Servo: Idle</span>
+        </div>
+      </div>
+
+      <!-- 4. Wiper Speed Card -->
+      <div class="metric-card">
+        <div class="card-header">
+          <span class="card-label">Wiper Speed</span>
+          <div class="card-icon purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 14v4"></path>
+              <path d="M4.93 10.93a10 10 0 0 1 14.14 0"></path>
+              <path d="M2 12a10 10 0 0 1 20 0"></path>
+              <circle cx="12" cy="14" r="2"></circle>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrapper">
+            <span id="wiper-speed-display" class="metric-value text-medium">--</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span id="wiper-speed-subtext" class="card-subtext">Sweep Rate: --</span>
+        </div>
+      </div>
+
+      <!-- 5. ESP32 Device Status Card -->
+      <div class="metric-card">
+        <div class="card-header">
+          <span class="card-label">ESP32 Device</span>
+          <div class="card-icon orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="m9 9 6 6"></path>
+              <path d="m15 9-6 6"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrapper">
+            <span id="esp32-badge" class="badge badge-offline">Offline</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span id="last-seen-text" class="card-subtext">Last update: Never</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Real-Time Chart Section -->
+    <section class="chart-section">
+      <div class="section-card">
+        <div class="section-card-header">
+          <div>
+            <h2 class="section-title">Rain Sensor Readings Over Time</h2>
+            <p class="section-subtitle">Real-time telemetric stream (0 = Wettest, 4095 = Completely Dry)</p>
+          </div>
+          <div class="chart-legend-tag">
+            <span class="legend-dot"></span>
+            <span>Rain Sensor (ADC)</span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="rainChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Readings Historical Table Section -->
+    <section class="table-section">
+      <div class="section-card">
+        <div class="section-card-header">
+          <div>
+            <h2 class="section-title">Recent Readings Log</h2>
+            <p class="section-subtitle">Displaying up to 30 latest telemetric records (newest first)</p>
+          </div>
+          <span id="table-record-count" class="record-pill">0 Records</span>
+        </div>
+
+        <div class="table-container">
+          <table class="telemetry-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Device ID</th>
+                <th>Rain Sensor Value</th>
+                <th>Rain Status</th>
+                <th>Wiper Status</th>
+                <th>Wiper Speed</th>
+              </tr>
+            </thead>
+            <tbody id="readings-table-body">
+              <!-- Empty state injected by default -->
+              <tr id="empty-state-row">
+                <td colspan="6" class="empty-state-cell">
+                  <div class="empty-state-content">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <h4>No sensor readings recorded yet</h4>
+                    <p>Connect your ESP32 or send a POST request to <code>/api/readings</code> to see live data.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard Footer -->
+    <footer class="dashboard-footer">
+      <div class="footer-left">
+        <span>Automatic Car Wiper IoT Dashboard</span>
+        <span class="footer-separator">•</span>
+        <span id="polling-indicator">Polling active (3s intervals)</span>
+      </div>
+      <div class="footer-right">
+        <span>Backend API: <code id="api-url-label">http://127.0.0.1:8000</code></span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

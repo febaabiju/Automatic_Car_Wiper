@@ -1,0 +1,21 @@
+# ====================================================================
+# Render Blueprint Specification
+# Project: Automatic Car Wiper IoT System
+# ====================================================================
+
+services:
+  - type: web
+    name: automatic-car-wiper
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # Secrets entered in Render Web Dashboard (not stored in git)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+

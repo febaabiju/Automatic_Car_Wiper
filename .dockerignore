@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# Secrets & environment configurations
+.env
+.env.*
+include/config.h
+
+# Python build & virtual environments
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# PlatformIO & Embedded hardware files (not needed in cloud web container)
+.pio/
+.pioenvs/
+.piolibdeps/
+esp32/
+src/
+include/
+platformio.ini
+compile_commands.json
+backup/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
