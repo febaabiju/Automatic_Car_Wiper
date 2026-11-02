@@ -198,7 +198,9 @@ void applyWiFiEnhancements() {
 
 void connectToWiFi() {
   WiFi.persistent(true);
-  WiFi.onEvent(onWiFiEvent);
+  WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+    onWiFiEvent(event, info);
+  });
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
 
@@ -274,18 +276,9 @@ void sendTelemetry(int rainVal, bool wiperState, const char* statusStr, const ch
   Serial.print("Payload:    ");
   Serial.println(jsonPayload);
 
-  WiFiClientSecure secureClient;
-  WiFiClient plainClient;
-  bool beginSuccess = false;
-
-  if (url.startsWith("https://")) {
-    secureClient.setInsecure(); // Establishes secure TLS session without hardcoded root CA
-    beginSuccess = http.begin(secureClient, url);
-    http.setTimeout(2000);      // 2s timeout prevents stalling servo movement
-  } else {
-    beginSuccess = http.begin(plainClient, url);
-    http.setTimeout(1500);
-  }
+  // HTTPClient automatically detects http vs https and configures TLS
+  bool beginSuccess = http.begin(url);
+  http.setTimeout(2500); // 2.5s timeout prevents stalling servo movement
 
   if (!beginSuccess) {
     Serial.println("[HTTP] Error: Failed to initialize connection to endpoint.");
