@@ -28,12 +28,12 @@
   #define DEVICE_ID "ESP32-WIPER"
 #endif
 
-// Known Hotspots (Cycles to whichever is actively broadcasting)
-const char* HOTSPOT_1_SSID = "narzo30";
-const char* HOTSPOT_1_PASS = "Narzo12345";
+// Known Hotspots (Primary: moto g96 5G_5200, Secondary: narzo30)
+const char* HOTSPOT_1_SSID = "moto g96 5G_5200";
+const char* HOTSPOT_1_PASS = "567895678";
 
-const char* HOTSPOT_2_SSID = "moto g96 5G_5200";
-const char* HOTSPOT_2_PASS = "567895678";
+const char* HOTSPOT_2_SSID = "narzo30";
+const char* HOTSPOT_2_PASS = "Narzo12345";
 
 // Active connection targets
 const char* activeSSID = HOTSPOT_1_SSID;
@@ -54,6 +54,7 @@ unsigned long lastSendTime = 0;
 unsigned long lastReconnect = 0;
 unsigned long lastBlink = 0;
 bool ledState = false;
+bool wasConnected = false;
 
 // Cloud Telemetry POST
 void sendTelemetry(int rainVal, bool wiperState, const char* statusStr, const char* speedStr) {
@@ -103,8 +104,9 @@ void setup() {
   myServo.attach(servoPin, 500, 2400);
   myServo.write(20);
 
-  // Wi-Fi Scan & Auto-Select
+  // Wi-Fi Setup
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false); // Disables modem sleep for immediate phone hotspot handshake response
   WiFi.disconnect();
   delay(100);
 
@@ -126,6 +128,7 @@ void setup() {
     Serial.print(foundRSSI);
     Serial.println(" dBm)");
 
+    // Prefer moto g96 5G_5200 first, fallback to narzo30
     if (foundSSID == HOTSPOT_1_SSID) {
       activeSSID = HOTSPOT_1_SSID;
       activePASS = HOTSPOT_1_PASS;
@@ -151,6 +154,7 @@ void setup() {
 
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(LED_PIN, HIGH);
+    wasConnected = true;
     Serial.println("\n[Wi-Fi] SUCCESS! CONNECTED & GOT IP!");
     Serial.print("[Wi-Fi] IP Address: ");
     Serial.println(WiFi.localIP());
@@ -163,10 +167,24 @@ void setup() {
 }
 
 void loop() {
-  // LED Status & Auto-Reconnect
+  // LED Status & Auto-Reconnect (Alternating if disconnected)
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(LED_PIN, HIGH); // Solid ON when online
+    if (!wasConnected) {
+      wasConnected = true;
+      Serial.println("\n******************************************");
+      Serial.println("   [Wi-Fi] CONNECTED & ONLINE!            ");
+      Serial.print("   Connected to: ");
+      Serial.println(activeSSID);
+      Serial.print("   IP Address:   ");
+      Serial.println(WiFi.localIP());
+      Serial.print("   Signal (RSSI):");
+      Serial.print(WiFi.RSSI());
+      Serial.println(" dBm");
+      Serial.println("******************************************\n");
+    }
   } else {
+    wasConnected = false;
     // Blink LED when searching/connecting
     if (millis() - lastBlink >= 500) {
       lastBlink = millis();
@@ -174,10 +192,17 @@ void loop() {
       digitalWrite(LED_PIN, ledState ? HIGH : LOW);
     }
 
-    // Retry connection every 8 seconds
+    // Retry connection every 8 seconds, alternating between Moto and Narzo
     if (millis() - lastReconnect >= 8000) {
       lastReconnect = millis();
-      Serial.print("[Wi-Fi] Retrying: ");
+      if (strcmp(activeSSID, HOTSPOT_1_SSID) == 0) {
+        activeSSID = HOTSPOT_2_SSID;
+        activePASS = HOTSPOT_2_PASS;
+      } else {
+        activeSSID = HOTSPOT_1_SSID;
+        activePASS = HOTSPOT_1_PASS;
+      }
+      Serial.print("\n[Wi-Fi] Trying next hotspot: ");
       Serial.println(activeSSID);
       WiFi.disconnect();
       WiFi.begin(activeSSID, activePASS);
