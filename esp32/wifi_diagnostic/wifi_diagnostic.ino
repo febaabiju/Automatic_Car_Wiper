@@ -14,8 +14,8 @@
 // ====================================================================
 // Wi-Fi Configuration (Enter your Realme Hotspot Credentials Here)
 // ====================================================================
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "narzo30";
+const char* WIFI_PASSWORD = "Narzo12345";
 
 // Translate disconnect reason codes to human-readable explanations
 const char* getDisconnectReasonText(uint8_t reason) {
