@@ -25,6 +25,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ESP32Servo.h>
+#include <esp_wifi.h>
 
 // ====================================================================
 // 1. Hardcoded Configuration
@@ -51,6 +52,21 @@
 #ifndef TELEMETRY_INTERVAL_MS
   #define TELEMETRY_INTERVAL_MS 3000
 #endif
+
+#if defined(WIFI_SSID_1) && defined(WIFI_SSID_2)
+  const char* knownSSIDs[]     = { WIFI_SSID_1, WIFI_SSID_2 };
+  const char* knownPasswords[] = { WIFI_PASSWORD_1, WIFI_PASSWORD_2 };
+  const int numKnownNetworks   = 2;
+#elif defined(WIFI_SSID_1)
+  const char* knownSSIDs[]     = { WIFI_SSID_1 };
+  const char* knownPasswords[] = { WIFI_PASSWORD_1 };
+  const int numKnownNetworks   = 1;
+#else
+  const char* knownSSIDs[]     = { WIFI_SSID };
+  const char* knownPasswords[] = { WIFI_PASSWORD };
+  const int numKnownNetworks   = 1;
+#endif
+int currentNetIndex = 0;
 
 // ====================================================================
 // 2. Hardware Pin Assignments & Variables
@@ -168,20 +184,37 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
   }
 }
 
+void applyWiFiEnhancements() {
+  // Enable Protected Management Frames (PMF) capability for Android hotspots (WPA2/WPA3 mixed mode)
+  wifi_config_t conf;
+  if (esp_wifi_get_config(WIFI_IF_STA, &conf) == ESP_OK) {
+    conf.sta.pmf_cfg.capable = true;
+    conf.sta.pmf_cfg.required = false;
+    esp_wifi_set_config(WIFI_IF_STA, &conf);
+  }
+  // Optimize RF TX power for close-range stability (reduces receiver saturation)
+  WiFi.setTxPower(WIFI_POWER_17dBm);
+}
+
 void connectToWiFi() {
   WiFi.persistent(true);
   WiFi.onEvent(onWiFiEvent);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
 
+  applyWiFiEnhancements();
+
+  const char* targetSSID = knownSSIDs[currentNetIndex];
+  const char* targetPass = knownPasswords[currentNetIndex];
+
   Serial.println("\n------------------------------------------");
   Serial.print("[Wi-Fi] Connecting to: ");
-  Serial.println(WIFI_SSID);
+  Serial.println(targetSSID);
   Serial.print("[Wi-Fi] Password:      ");
-  Serial.println(WIFI_PASSWORD);
+  Serial.println(targetPass);
   Serial.println("------------------------------------------");
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(targetSSID, targetPass);
 
   // Wait up to 10 seconds for initial connection with serial dots
   unsigned long startAttempt = millis();
@@ -365,14 +398,38 @@ void loop() {
   if (millis() - lastSendTime >= sendInterval) {
     lastSendTime = millis();
     sendTelemetry(rainValue, rainDetected, currentRainStatus, currentWiperSpeed);
+    
+    // Serial Stream Format (for direct USB-to-cloud streaming if Wi-Fi is offline)
+    Serial.print("TELEMETRY:{\"device_id\":\"");
+    Serial.print(DEVICE_ID);
+    Serial.print("\",\"rain_value\":");
+    Serial.print(rainValue);
+    Serial.print(",\"rain_status\":\"");
+    Serial.print(currentRainStatus);
+    Serial.print("\",\"wiper_on\":");
+    Serial.print(rainDetected ? "true" : "false");
+    Serial.print(",\"wiper_speed\":\"");
+    Serial.print(currentWiperSpeed);
+    Serial.println("\"}");
   }
 
   // --- Background Wi-Fi Reconnect (Every 10 Seconds) ---
   if (WiFi.status() != WL_CONNECTED && (millis() - lastWiFiCheck >= wifiCheckInterval)) {
     lastWiFiCheck = millis();
-    Serial.println("\n[Wi-Fi] Disconnected. Reconnecting to moto g96 5G_5200...");
+    currentNetIndex = (currentNetIndex + 1) % numKnownNetworks;
+    const char* targetSSID = knownSSIDs[currentNetIndex];
+    const char* targetPass = knownPasswords[currentNetIndex];
+
+    Serial.print("\n[Wi-Fi] Disconnected. Rotating to network [");
+    Serial.print(currentNetIndex + 1);
+    Serial.print("/");
+    Serial.print(numKnownNetworks);
+    Serial.print("]: ");
+    Serial.println(targetSSID);
+
     WiFi.disconnect();
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    applyWiFiEnhancements();
+    WiFi.begin(targetSSID, targetPass);
   }
 
   // --- Servo Step Delay (Preserved from Working Code) ---
