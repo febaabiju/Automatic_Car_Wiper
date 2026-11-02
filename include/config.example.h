@@ -2,33 +2,41 @@
 #define CONFIG_EXAMPLE_H
 
 // ====================================================================
-// Automatic Car Wiper - ESP32 Firmware Configuration Template
+// Automatic Car Wiper - Hardware & Wi-Fi Configuration (Example)
 // ====================================================================
-// Instructions:
-// 1. Copy this file to "include/config.h"
-// 2. Enter your real Wi-Fi credentials and backend URL
-// 3. "include/config.h" is ignored by Git to keep your secrets private
-// ====================================================================
+// Copy this file to "config.h" and insert your network credentials.
 
-// 2.4 GHz Wi-Fi credentials (supports multiple hotspots)
-#define WIFI_SSID_1     "YOUR_PRIMARY_SSID"
-#define WIFI_PASSWORD_1 "YOUR_PRIMARY_PASSWORD"
+#define WIFI_SSID               "YOUR_PRIMARY_WIFI_SSID"
+#define WIFI_PASSWORD           "YOUR_PRIMARY_WIFI_PASS"
 
-#define WIFI_SSID_2     "YOUR_SECONDARY_SSID"
-#define WIFI_PASSWORD_2 "YOUR_SECONDARY_PASSWORD"
+#define BACKUP_SSID             "YOUR_BACKUP_WIFI_SSID"
+#define BACKUP_PASSWORD         "YOUR_BACKUP_WIFI_PASS"
 
-#define WIFI_SSID       "YOUR_PRIMARY_SSID"
-#define WIFI_PASSWORD   "YOUR_PRIMARY_PASSWORD"
+#define BACKEND_URL             "https://automatic-car-wiper.onrender.com/api/readings"
+#define DEVICE_ID               "ESP32-WIPER"
 
-// Backend API URL (FastAPI /api/readings endpoint)
-// Local:  http://<YOUR_COMPUTER_IP>:8000/api/readings
-// Render: https://automatic-car-wiper.onrender.com/api/readings
-#define BACKEND_URL "https://automatic-car-wiper.onrender.com/api/readings"
+#define PIN_RAIN_SENSOR         34
+#define PIN_SERVO               18
+#define PIN_STATUS_LED          2
+#define PIN_BOOT_BUTTON         0
 
-// Device identifier
-#define DEVICE_ID "ESP32-WIPER"
+#define RAIN_DRY_THRESHOLD      3500
+#define RAIN_WET_THRESHOLD      3000
+#define RAIN_HEAVY_THRESHOLD    1700
 
-// Telemetry interval in milliseconds (3000ms = 3 seconds)
-#define TELEMETRY_INTERVAL_MS 3000
+#define SERVO_MIN_ANGLE         20
+#define SERVO_MAX_ANGLE         120
+#define SERVO_STEP_ANGLE        5
+#define WIPE_DELAY_SLOW_MS      60
+#define WIPE_DELAY_FAST_MS      20
+
+#define TELEMETRY_INTERVAL_MS   3000
+#define WIFI_CONNECT_TIMEOUT_MS 8000
+#define WIFI_RETRY_INTERVAL_MS  5000
+#define SENSOR_SAMPLE_INTERVAL  50
+
+#define SOFTAP_SSID             "AutoWiper_Setup"
+#define SOFTAP_PASS             ""
+#define SOFTAP_TIMEOUT_MS       180000
 
 #endif // CONFIG_EXAMPLE_H
