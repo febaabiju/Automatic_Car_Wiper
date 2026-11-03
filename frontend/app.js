@@ -18,7 +18,8 @@ function resolveApiBaseUrl() {
   return 'http://127.0.0.1:8000';
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+const CLOUD_FALLBACK_URL = 'https://automatic-car-wiper.onrender.com';
+let activeApiUrl = resolveApiBaseUrl();
 const POLL_INTERVAL_MS = 3000;
 const OFFLINE_THRESHOLD_SECONDS = 30;
 
@@ -180,7 +181,7 @@ function escapeHtml(str) {
  */
 async function checkBackendHealth() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/health`, {
+    const response = await fetch(`${activeApiUrl}/api/health`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -189,18 +190,40 @@ async function checkBackendHealth() {
       const data = await response.json();
       elements.backendPill.className = 'status-pill status-online';
       elements.backendText.textContent = data.supabase_configured
-        ? 'Backend: Connected'
+        ? (activeApiUrl === CLOUD_FALLBACK_URL ? 'Backend: Cloud (Supabase)' : 'Backend: Connected')
         : 'Backend: DB Unconfigured';
       hideAlert();
+      if (elements.apiUrlLabel) elements.apiUrlLabel.textContent = activeApiUrl;
       return true;
     } else {
       throw new Error(`Health check returned HTTP ${response.status}`);
     }
   } catch (err) {
+    // If local endpoint failed and not already on Cloud, fallback to Render Cloud
+    if (activeApiUrl !== CLOUD_FALLBACK_URL) {
+      try {
+        console.warn(`Local backend unreachable at ${activeApiUrl}. Falling back to Cloud Render...`);
+        const cloudResponse = await fetch(`${CLOUD_FALLBACK_URL}/api/health`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (cloudResponse.ok) {
+          activeApiUrl = CLOUD_FALLBACK_URL;
+          elements.backendPill.className = 'status-pill status-online';
+          elements.backendText.textContent = 'Backend: Cloud (Supabase)';
+          hideAlert();
+          if (elements.apiUrlLabel) elements.apiUrlLabel.textContent = activeApiUrl;
+          return true;
+        }
+      } catch (cloudErr) {
+        // Both local and cloud failed
+      }
+    }
+
     elements.backendPill.className = 'status-pill status-offline';
     elements.backendText.textContent = 'Backend: Offline';
     showAlert(
-      `Cannot connect to FastAPI backend at ${API_BASE_URL}. Ensure uvicorn or Docker container is running.`
+      `Cannot connect to FastAPI backend at ${activeApiUrl}. Ensure uvicorn or internet connection is active.`
     );
     return false;
   }
@@ -211,7 +234,7 @@ async function checkBackendHealth() {
  */
 async function fetchLatestReading() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/latest`, {
+    const response = await fetch(`${activeApiUrl}/api/latest`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -243,7 +266,7 @@ async function fetchLatestReading() {
  */
 async function fetchReadingsHistory() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/readings`, {
+    const response = await fetch(`${activeApiUrl}/api/readings`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -530,7 +553,7 @@ async function handleManualRefresh() {
 document.addEventListener('DOMContentLoaded', () => {
   // Update connected API URL in footer
   if (elements.apiUrlLabel) {
-    elements.apiUrlLabel.textContent = API_BASE_URL;
+    elements.apiUrlLabel.textContent = activeApiUrl;
   }
 
   initChart();
